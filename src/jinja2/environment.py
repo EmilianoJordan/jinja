@@ -11,6 +11,7 @@ from functools import lru_cache
 from functools import partial
 from functools import reduce
 from types import CodeType
+from typing import overload
 
 from markupsafe import Markup
 
@@ -55,6 +56,8 @@ from .utils import LRUCache
 from .utils import missing
 
 if t.TYPE_CHECKING:
+    from io import BufferedWriter
+
     import typing_extensions as te
 
     from .bccache import BytecodeCache
@@ -1590,9 +1593,25 @@ class TemplateStream:
         self._gen = gen
         self.disable_buffering()
 
+    @overload
     def dump(
         self,
         fp: t.Union[str, t.IO[bytes]],
+        encoding: str,
+        errors: t.Optional[str] = "strict",
+    ) -> None: ...
+
+    @overload
+    def dump(
+        self,
+        fp: t.Union[str, t.IO[str]],
+        encoding: None = None,
+        errors: t.Optional[str] = "strict",
+    ) -> None: ...
+
+    def dump(
+        self,
+        fp: t.Union[str, t.IO[bytes], t.IO[str]],
         encoding: t.Optional[str] = None,
         errors: t.Optional[str] = "strict",
     ) -> None:
@@ -1604,13 +1623,15 @@ class TemplateStream:
 
             Template('Hello {{ name }}!').stream(name='foo').dump('hello.html')
         """
+        real_fp: t.Union[t.IO[bytes], t.IO[str], BufferedWriter]
+
         close = False
 
         if isinstance(fp, str):
             if encoding is None:
                 encoding = "utf-8"
 
-            real_fp: t.IO[bytes] = open(fp, "wb")
+            real_fp = open(fp, "wb")
             close = True
         else:
             real_fp = fp
@@ -1622,10 +1643,10 @@ class TemplateStream:
                 iterable = self  # type: ignore
 
             if hasattr(real_fp, "writelines"):
-                real_fp.writelines(iterable)
+                real_fp.writelines(iterable)  # type: ignore
             else:
                 for item in iterable:
-                    real_fp.write(item)
+                    real_fp.write(item)  # type: ignore
         finally:
             if close:
                 real_fp.close()
