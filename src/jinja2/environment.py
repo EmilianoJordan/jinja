@@ -1594,7 +1594,7 @@ class TemplateStream:
 
     def dump(
         self,
-        fp: t.Union["StrOrBytesPath", t.IO[bytes]],
+        fp: t.Union["StrOrBytesPath", t.IO[bytes], t.IO[str]],
         encoding: t.Optional[str] = None,
         errors: t.Optional[str] = "strict",
     ) -> None:
@@ -1606,19 +1606,18 @@ class TemplateStream:
 
             Template('Hello {{ name }}!').stream(name='foo').dump('hello.html')
         """
-        real_fp: t.IO[bytes]
-
         close = False
 
-        try:
-            real_fp = open(fp, "wb")  # type: ignore[arg-type]
-        except TypeError:
-            real_fp = fp  # type: ignore[assignment]
-        else:
+        if isinstance(fp, (str, bytes)) or hasattr(fp, "__fspath__"):
+            real_fp = open(fp, "wb")
+
             close = True
 
             if encoding is None:
                 encoding = "utf-8"
+
+        else:
+            real_fp = fp  # type: ignore
 
         try:
             if encoding is not None:
